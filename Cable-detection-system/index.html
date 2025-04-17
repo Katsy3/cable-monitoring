@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <title>Моніторинг обривів кабелів</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-512.png">
+  <meta name="theme-color" content="#333333" />
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 20px; text-align: center; }
+    h1 { color: #333; margin-bottom: 20px; }
+    .line { position: relative; width: 90%; height: 10px; background: #888; margin: 30px auto 5px; border-radius: 5px; }
+    .fault { position: absolute; top: -10px; width: 20px; height: 20px; border-radius: 50%; transform: translateX(-50%); transition: left 0.6s ease-out, background 0.3s ease-in-out; }
+    .fault.ok { background: green; }
+    .fault.short { background: orange; }
+    .fault.open { background: red; }
+    .value { position: absolute; top: -30px; font-size: 12px; color: #222; transform: translateX(-50%); }
+    .label { font-size: 14px; color: #555; }
+    .status { font-size: 13px; font-weight: bold; margin: 3px auto; }
+    .status.ok { color: green; }
+    .status.short { color: orange; }
+    .status.open { color: red; }
+    .history { font-size: 12px; color: #777; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <h1>📶 Моніторинг ліній кабелів</h1>
+
+  <div id="line1" class="line"><div class="fault ok" id="fault1"></div><div class="value" id="value1"></div></div>
+  <div class="label">Лінія 1</div><div class="status ok" id="status1">Норма</div><div class="history" id="history1">📈</div>
+
+  <div id="line2" class="line"><div class="fault ok" id="fault2"></div><div class="value" id="value2"></div></div>
+  <div class="label">Лінія 2</div><div class="status ok" id="status2">Норма</div><div class="history" id="history2">📈</div>
+
+  <div id="line3" class="line"><div class="fault ok" id="fault3"></div><div class="value" id="value3"></div></div>
+  <div class="label">Лінія 3</div><div class="status ok" id="status3">Норма</div><div class="history" id="history3">📈</div>
+
+  <script>
+    const channelID = '1737956';
+    const maxLength = 100;
+    const fetchInterval = 15000;
+    let history = [[], [], []];
+
+    async function updateFaults() {
+      const url = `https://api.thingspeak.com/channels/${channelID}/feeds/last.json`;
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        const lengths = [parseFloat(data.field1 || 0), parseFloat(data.field2 || 0), parseFloat(data.field3 || 0)];
+
+        lengths.forEach((length, i) => {
+          const line = document.getElementById(`line${i + 1}`);
+          const fault = document.getElementById(`fault${i + 1}`);
+          const value = document.getElementById(`value${i + 1}`);
+          const historyBox = document.getElementById(`history${i + 1}`);
+          const status = document.getElementById(`status${i + 1}`);
+
+          const percent = Math.min(length / maxLength, 1);
+          const px = percent * line.offsetWidth;
+
+          fault.style.left = `${px}px`;
+          value.style.left = `${px}px`;
+          value.innerText = `${length.toFixed(1)} м`;
+
+          history[i].push(length);
+          if (history[i].length > 5) history[i].shift();
+          historyBox.innerText = "📈 " + history[i].map(v => v.toFixed(1)).join(" → ");
+
+          let statusClass = "ok";
+          let statusText = "Норма";
+          if (length <= 0.2) {
+            statusClass = "open";
+            statusText = "Обрив";
+          } else if (length < 1.0) {
+            statusClass = "short";
+            statusText = "Коротке замикання";
+          }
+
+          fault.className = `fault ${statusClass}`;
+          status.className = `status ${statusClass}`;
+          status.innerText = statusText;
+        });
+      } catch (err) {
+        console.error("Помилка отримання з ThingSpeak:", err);
+      }
+    }
+
+    updateFaults();
+    setInterval(updateFaults, fetchInterval);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(function(registration) {
+        console.log('Service Worker зареєстрований з обсягом:', registration.scope);
+
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                console.log('Нова версія знайдена, перезавантаження...');
+                window.location.reload();
+              }
+            }
+          });
+        });
+      }).catch(function(error) {
+        console.log('Реєстрація Service Worker невдала:', error);
+      });
+    }
+  </script>
+</body>
+</html>

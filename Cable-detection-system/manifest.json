@@ -1,0 +1,21 @@
+{
+  "name": "Моніторинг Кабелів",
+  "short_name": "Кабель",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f0f0f0",
+  "theme_color": "#333333",
+  "description": "Моніторинг обривів та коротких замикань кабельних ліній у реальному часі.",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
